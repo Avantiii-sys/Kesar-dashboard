@@ -9,43 +9,43 @@
 
 </head>
 
-<body class="bg-orange-50 text-gray-800 p-6 text-center">
+<body class="bg-slate-900 text-white p-6 text-center">
 
-<h1 class="text-3xl font-bold mb-6 text-orange-600">
-🌱 Kesar Smart Incubation Dashboard
+<h1 class="text-3xl font-bold mb-6 text-cyan-400">
+🌱 Kesar Smart Dashboard (Simulation)
 </h1>
 
 <!-- CARDS -->
-<div class="flex justify-center gap-6 flex-wrap">
+<div class="flex justify-center gap-6">
 
-  <div class="bg-white p-6 rounded-xl shadow-md w-52">
-    <h2 class="text-orange-500 font-semibold">🌡️ Temperature</h2>
-    <p id="temp" class="text-3xl font-bold mt-2">--</p>
-    <p id="tempStatus" class="mt-1"></p>
+  <div class="bg-slate-800 p-6 rounded-xl w-48">
+    <h2>🌡️ Temperature</h2>
+    <p id="temp" class="text-2xl font-bold">--</p>
+    <p id="tempStatus"></p>
   </div>
 
-  <div class="bg-white p-6 rounded-xl shadow-md w-52">
-    <h2 class="text-orange-500 font-semibold">💧 Humidity</h2>
-    <p id="hum" class="text-3xl font-bold mt-2">--</p>
-    <p id="humStatus" class="mt-1"></p>
+  <div class="bg-slate-800 p-6 rounded-xl w-48">
+    <h2>💧 Humidity</h2>
+    <p id="hum" class="text-2xl font-bold">--</p>
+    <p id="humStatus"></p>
   </div>
 
 </div>
 
 <!-- ALERT -->
 <div class="mt-6">
-  <h2 class="text-xl text-orange-600 font-semibold">🚨 Alerts</h2>
-  <p id="alerts" class="text-lg mt-2"></p>
+  <h2 class="text-xl">🚨 Alerts</h2>
+  <p id="alerts" class="text-lg">Waiting...</p>
 </div>
 
 <!-- GRAPH -->
-<div class="mt-8 max-w-2xl mx-auto bg-white p-4 rounded-xl shadow-md">
+<div class="mt-6 w-full max-w-xl mx-auto">
   <canvas id="chart"></canvas>
 </div>
 
 <script>
 
-const sheetURL = "YOUR_SHEET_LINK";
+const sheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSJJpup-f7obvMusWbE9e3AO_wPfX_qcHgRuoydu6G25jkk2-SxCXgsAjv4WBAREAlSonC_SC-3daq6/pub?output=csv";
 
 let data = [];
 let index = 0;
@@ -77,33 +77,20 @@ function updateUI() {
   document.getElementById("temp").innerText = d.temp + " °C";
   document.getElementById("hum").innerText = d.hum + " %";
 
-  // STATUS COLORS
-  const tempStatus = document.getElementById("tempStatus");
-  const humStatus = document.getElementById("humStatus");
+  // STATUS
+  document.getElementById("tempStatus").innerText =
+    d.temp > 25 ? "🔴 High" : "🟢 Normal";
 
-  if (d.temp > 25) {
-    tempStatus.innerText = "High";
-    tempStatus.className = "text-red-500";
-  } else {
-    tempStatus.innerText = "Normal";
-    tempStatus.className = "text-green-500";
-  }
-
-  if (d.hum < 40) {
-    humStatus.innerText = "Low";
-    humStatus.className = "text-red-500";
-  } else {
-    humStatus.innerText = "Normal";
-    humStatus.className = "text-green-500";
-  }
+  document.getElementById("humStatus").innerText =
+    d.hum < 40 ? "🔴 Low" : "🟢 Normal";
 
   // ALERTS
   let alert = "";
-  if (d.temp > 25) alert += "🔥 Temperature too high! ";
+  if (d.temp > 25) alert += "🔥 Temp too high! ";
   if (d.hum < 40) alert += "💧 Humidity too low! ";
 
   document.getElementById("alerts").innerText =
-    alert || "All conditions optimal ✅";
+    alert || "All good ✅";
 
   // GRAPH
   if (!chart) {
@@ -116,13 +103,11 @@ function updateUI() {
         datasets: [
           {
             label: "Temperature",
-            data: [],
-            borderColor: "#f97316"
+            data: []
           },
           {
             label: "Humidity",
-            data: [],
-            borderColor: "#fb923c"
+            data: []
           }
         ]
       }

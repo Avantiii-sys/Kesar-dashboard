@@ -15,29 +15,30 @@ tailwind.config = {
 
 </head>
 
-<body class="bg-orange-50 text-gray-800 dark:bg-gray-900 dark:text-white p-6 text-center">
+<body class="bg-orange-50 text-gray-800 dark:bg-[#0b1a2f] dark:text-white p-6 text-center transition-all duration-300">
 
-<h1 class="text-3xl font-bold mb-4 text-orange-600 dark:text-orange-400">
-🌱 Kesar Smart Incubation Dashboard
-</h1>
-
-<button onclick="toggleDark()" 
-class="mb-6 px-4 py-2 bg-orange-500 text-white rounded-lg">
-Toggle Dark Mode 🌙
+<!-- 🌙 SMALL TOGGLE BUTTON (TOP RIGHT) -->
+<button onclick="toggleDark()" id="themeBtn"
+class="fixed top-4 right-4 px-3 py-1 text-sm bg-orange-500 text-white rounded-md shadow">
+🌙 Dark
 </button>
+
+<h1 class="text-3xl font-bold mb-6 text-orange-600 dark:text-cyan-300">
+🌱 Kesar Smart Dashboard
+</h1>
 
 <!-- CARDS -->
 <div class="flex justify-center gap-6 flex-wrap">
 
-  <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md w-52">
-    <h2 class="text-orange-500 font-semibold">🌡️ Temperature</h2>
-    <p id="temp" class="text-3xl font-bold mt-2">--</p>
+  <div class="bg-white dark:bg-[#1f2e45] p-6 rounded-xl shadow-md w-52">
+    <h2 class="text-orange-500 dark:text-cyan-300 font-semibold">🌡️ Temperature</h2>
+    <p id="temp" class="text-3xl font-bold mt-2 text-gray-900 dark:text-white">--</p>
     <p id="tempStatus" class="mt-1"></p>
   </div>
 
-  <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md w-52">
-    <h2 class="text-orange-500 font-semibold">💧 Humidity</h2>
-    <p id="hum" class="text-3xl font-bold mt-2">--</p>
+  <div class="bg-white dark:bg-[#1f2e45] p-6 rounded-xl shadow-md w-52">
+    <h2 class="text-orange-500 dark:text-cyan-300 font-semibold">💧 Humidity</h2>
+    <p id="hum" class="text-3xl font-bold mt-2 text-gray-900 dark:text-white">--</p>
     <p id="humStatus" class="mt-1"></p>
   </div>
 
@@ -45,32 +46,43 @@ Toggle Dark Mode 🌙
 
 <!-- ALERT -->
 <div class="mt-6">
-  <h2 class="text-xl text-orange-600 dark:text-orange-400 font-semibold">🚨 Alerts</h2>
+  <h2 class="text-xl text-orange-600 dark:text-cyan-300 font-semibold">🚨 Alerts</h2>
   <p id="alerts" class="text-lg mt-2">Loading...</p>
 </div>
 
 <!-- GRAPH -->
-<div class="mt-8 max-w-2xl mx-auto bg-white dark:bg-gray-800 p-4 rounded-xl shadow-md">
+<div class="mt-8 max-w-2xl mx-auto bg-white dark:bg-[#1f2e45] p-4 rounded-xl shadow-md">
   <canvas id="chart"></canvas>
 </div>
 
 <script>
 
-// 🌙 DARK MODE TOGGLE
+// 🌙 DARK MODE TOGGLE + BUTTON TEXT
 function toggleDark() {
   document.body.classList.toggle("dark");
 
+  const btn = document.getElementById("themeBtn");
+
   if (document.body.classList.contains("dark")) {
     localStorage.setItem("theme", "dark");
+    btn.innerText = "☀️ Light";
   } else {
     localStorage.setItem("theme", "light");
+    btn.innerText = "🌙 Dark";
   }
+
+  updateChartTheme();
 }
 
 // Load saved theme
-if (localStorage.getItem("theme") === "dark") {
-  document.body.classList.add("dark");
-}
+window.onload = () => {
+  const btn = document.getElementById("themeBtn");
+
+  if (localStorage.getItem("theme") === "dark") {
+    document.body.classList.add("dark");
+    btn.innerText = "☀️ Light";
+  }
+};
 
 // 🔥 THINGSPEAK CONFIG
 const channelID = "3329966";
@@ -91,33 +103,27 @@ async function fetchData() {
 
     const temps = feeds.map(f => parseFloat(f.field1));
     const hums = feeds.map(f => parseFloat(f.field2));
+    const labels = feeds.map(f => new Date(f.created_at).toLocaleTimeString());
 
     const latestTemp = temps[temps.length - 1];
     const latestHum = hums[hums.length - 1];
 
-    // UPDATE VALUES
+    // VALUES
     document.getElementById("temp").innerText = latestTemp + " °C";
     document.getElementById("hum").innerText = latestHum + " %";
 
     // STATUS
-    const tempStatus = document.getElementById("tempStatus");
-    const humStatus = document.getElementById("humStatus");
+    document.getElementById("tempStatus").innerText =
+      latestTemp > 25 ? "High" : "Normal";
 
-    if (latestTemp > 25) {
-      tempStatus.innerText = "High";
-      tempStatus.className = "text-red-500";
-    } else {
-      tempStatus.innerText = "Normal";
-      tempStatus.className = "text-green-500";
-    }
+    document.getElementById("tempStatus").className =
+      latestTemp > 25 ? "text-red-500" : "text-green-500";
 
-    if (latestHum < 40) {
-      humStatus.innerText = "Low";
-      humStatus.className = "text-red-500";
-    } else {
-      humStatus.innerText = "Normal";
-      humStatus.className = "text-green-500";
-    }
+    document.getElementById("humStatus").innerText =
+      latestHum < 40 ? "Low" : "Normal";
+
+    document.getElementById("humStatus").className =
+      latestHum < 40 ? "text-red-500" : "text-green-500";
 
     // ALERTS
     let alert = "";
@@ -134,27 +140,31 @@ async function fetchData() {
       chart = new Chart(ctx, {
         type: "line",
         data: {
-          labels: feeds.map((_, i) => i),
+          labels: labels,
           datasets: [
             {
-              label: "Temperature",
+              label: "Temperature (°C)",
               data: temps,
               borderColor: "#f97316",
-              tension: 0.3
+              tension: 0.3,
+              pointRadius: 3
             },
             {
-              label: "Humidity",
+              label: "Humidity (%)",
               data: hums,
-              borderColor: "#fb923c",
-              tension: 0.3
+              borderColor: "#38bdf8",
+              tension: 0.3,
+              pointRadius: 3
             }
           ]
-        }
+        },
+        options: getChartOptions()
       });
     } else {
-      chart.data.labels = feeds.map((_, i) => i);
+      chart.data.labels = labels;
       chart.data.datasets[0].data = temps;
       chart.data.datasets[1].data = hums;
+      chart.options = getChartOptions();
       chart.update();
     }
 
@@ -164,7 +174,42 @@ async function fetchData() {
   }
 }
 
-// ⏱️ ThingSpeak limit
+// 🎨 CHART THEME (fix axis visibility)
+function getChartOptions() {
+  const isDark = document.body.classList.contains("dark");
+
+  return {
+    plugins: {
+      legend: {
+        labels: {
+          color: isDark ? "#ffffff" : "#000000"
+        }
+      }
+    },
+    scales: {
+      x: {
+        ticks: {
+          color: isDark ? "#ffffff" : "#000000"
+        }
+      },
+      y: {
+        ticks: {
+          color: isDark ? "#ffffff" : "#000000"
+        }
+      }
+    }
+  };
+}
+
+// update chart on theme toggle
+function updateChartTheme() {
+  if (chart) {
+    chart.options = getChartOptions();
+    chart.update();
+  }
+}
+
+// ⏱️ Update
 setInterval(fetchData, 15000);
 fetchData();
 

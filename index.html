@@ -9,129 +9,140 @@
 
 </head>
 
-<body class="bg-slate-900 text-white p-6 text-center">
+<body class="bg-orange-50 text-gray-800 p-6 text-center">
 
-<h1 class="text-3xl font-bold mb-6 text-cyan-400">
-🌱 Kesar Smart Dashboard (Simulation)
+<h1 class="text-3xl font-bold mb-6 text-orange-600">
+🌱 Kesar Smart Incubation Dashboard
 </h1>
 
 <!-- CARDS -->
-<div class="flex justify-center gap-6">
+<div class="flex justify-center gap-6 flex-wrap">
 
-  <div class="bg-slate-800 p-6 rounded-xl w-48">
-    <h2>🌡️ Temperature</h2>
-    <p id="temp" class="text-2xl font-bold">--</p>
-    <p id="tempStatus"></p>
+  <div class="bg-white p-6 rounded-xl shadow-md w-52">
+    <h2 class="text-orange-500 font-semibold">🌡️ Temperature</h2>
+    <p id="temp" class="text-3xl font-bold mt-2">--</p>
+    <p id="tempStatus" class="mt-1"></p>
   </div>
 
-  <div class="bg-slate-800 p-6 rounded-xl w-48">
-    <h2>💧 Humidity</h2>
-    <p id="hum" class="text-2xl font-bold">--</p>
-    <p id="humStatus"></p>
+  <div class="bg-white p-6 rounded-xl shadow-md w-52">
+    <h2 class="text-orange-500 font-semibold">💧 Humidity</h2>
+    <p id="hum" class="text-3xl font-bold mt-2">--</p>
+    <p id="humStatus" class="mt-1"></p>
   </div>
 
 </div>
 
 <!-- ALERT -->
 <div class="mt-6">
-  <h2 class="text-xl">🚨 Alerts</h2>
-  <p id="alerts" class="text-lg">Waiting...</p>
+  <h2 class="text-xl text-orange-600 font-semibold">🚨 Alerts</h2>
+  <p id="alerts" class="text-lg mt-2">Loading...</p>
 </div>
 
 <!-- GRAPH -->
-<div class="mt-6 w-full max-w-xl mx-auto">
+<div class="mt-8 max-w-2xl mx-auto bg-white p-4 rounded-xl shadow-md">
   <canvas id="chart"></canvas>
 </div>
 
 <script>
 
-const sheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSJJpup-f7obvMusWbE9e3AO_wPfX_qcHgRuoydu6G25jkk2-SxCXgsAjv4WBAREAlSonC_SC-3daq6/pub?output=csv";
+// 🔥 YOUR THINGSPEAK DETAILS
+const channelID = "3329966";
+const readAPI = "1VBVCE79U9BNG713";
 
-let data = [];
-let index = 0;
 let chart;
 
-async function loadData() {
-  const res = await fetch(sheetURL);
-  const text = await res.text();
+async function fetchData() {
+  try {
+    const res = await fetch(
+      `https://api.thingspeak.com/channels/${channelID}/feeds.json?api_key=${readAPI}&results=10`
+    );
 
-  const rows = text.trim().split("\n").slice(1);
+    const data = await res.json();
+    const feeds = data.feeds;
 
-  data = rows.map(row => {
-    const cols = row.split(",");
-    return {
-      time: cols[0],
-      temp: parseFloat(cols[1]),
-      hum: parseFloat(cols[2])
-    };
-  });
+    if (!feeds || feeds.length === 0) return;
 
-  updateUI();
+    // Parse values
+    const temps = feeds.map(f => parseFloat(f.field1));
+    const hums = feeds.map(f => parseFloat(f.field2));
+
+    const latestTemp = temps[temps.length - 1];
+    const latestHum = hums[hums.length - 1];
+
+    // Update UI
+    document.getElementById("temp").innerText = latestTemp + " °C";
+    document.getElementById("hum").innerText = latestHum + " %";
+
+    // STATUS
+    const tempStatus = document.getElementById("tempStatus");
+    const humStatus = document.getElementById("humStatus");
+
+    if (latestTemp > 25) {
+      tempStatus.innerText = "High";
+      tempStatus.className = "text-red-500";
+    } else {
+      tempStatus.innerText = "Normal";
+      tempStatus.className = "text-green-500";
+    }
+
+    if (latestHum < 40) {
+      humStatus.innerText = "Low";
+      humStatus.className = "text-red-500";
+    } else {
+      humStatus.innerText = "Normal";
+      humStatus.className = "text-green-500";
+    }
+
+    // ALERTS
+    let alert = "";
+    if (latestTemp > 25) alert += "🔥 Temperature too high! ";
+    if (latestHum < 40) alert += "💧 Humidity too low! ";
+
+    document.getElementById("alerts").innerText =
+      alert || "All conditions optimal ✅";
+
+    // GRAPH
+    if (!chart) {
+      const ctx = document.getElementById("chart").getContext("2d");
+
+      chart = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: feeds.map((_, i) => i),
+          datasets: [
+            {
+              label: "Temperature",
+              data: temps,
+              borderColor: "#f97316",
+              tension: 0.3
+            },
+            {
+              label: "Humidity",
+              data: hums,
+              borderColor: "#fb923c",
+              tension: 0.3
+            }
+          ]
+        }
+      });
+    } else {
+      chart.data.labels = feeds.map((_, i) => i);
+      chart.data.datasets[0].data = temps;
+      chart.data.datasets[1].data = hums;
+      chart.update();
+    }
+
+  } catch (err) {
+    console.error(err);
+    document.getElementById("alerts").innerText = "⚠️ Fetch failed";
+  }
 }
 
-function updateUI() {
-  if (index >= data.length) index = 0;
+// ⏱️ ThingSpeak limit → 15 sec
+setInterval(fetchData, 15000);
 
-  const d = data[index];
-
-  document.getElementById("temp").innerText = d.temp + " °C";
-  document.getElementById("hum").innerText = d.hum + " %";
-
-  // STATUS
-  document.getElementById("tempStatus").innerText =
-    d.temp > 25 ? "🔴 High" : "🟢 Normal";
-
-  document.getElementById("humStatus").innerText =
-    d.hum < 40 ? "🔴 Low" : "🟢 Normal";
-
-  // ALERTS
-  let alert = "";
-  if (d.temp > 25) alert += "🔥 Temp too high! ";
-  if (d.hum < 40) alert += "💧 Humidity too low! ";
-
-  document.getElementById("alerts").innerText =
-    alert || "All good ✅";
-
-  // GRAPH
-  if (!chart) {
-    const ctx = document.getElementById("chart").getContext("2d");
-
-    chart = new Chart(ctx, {
-      type: "line",
-      data: {
-        labels: [],
-        datasets: [
-          {
-            label: "Temperature",
-            data: []
-          },
-          {
-            label: "Humidity",
-            data: []
-          }
-        ]
-      }
-    });
-  }
-
-  chart.data.labels.push(d.time);
-  chart.data.datasets[0].data.push(d.temp);
-  chart.data.datasets[1].data.push(d.hum);
-
-  if (chart.data.labels.length > 10) {
-    chart.data.labels.shift();
-    chart.data.datasets[0].data.shift();
-    chart.data.datasets[1].data.shift();
-  }
-
-  chart.update();
-
-  index++;
-}
-
-setInterval(updateUI, 5000);
-
-loadData();
+// Initial call
+fetchData();
 
 </script>
 

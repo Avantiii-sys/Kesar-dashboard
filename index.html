@@ -17,7 +17,7 @@ tailwind.config = {
 
 <body class="bg-orange-50 text-gray-800 dark:bg-[#0b1a2f] dark:text-white p-6 text-center transition-all duration-300">
 
-<!-- 🌙 SMALL TOGGLE BUTTON (TOP RIGHT) -->
+<!-- 🌙 TOGGLE BUTTON -->
 <button onclick="toggleDark()" id="themeBtn"
 class="fixed top-4 right-4 px-3 py-1 text-sm bg-orange-500 text-white rounded-md shadow">
 🌙 Dark
@@ -48,6 +48,12 @@ class="fixed top-4 right-4 px-3 py-1 text-sm bg-orange-500 text-white rounded-md
 <div class="mt-6">
   <h2 class="text-xl text-orange-600 dark:text-cyan-300 font-semibold">🚨 Alerts</h2>
   <p id="alerts" class="text-lg mt-2">Loading...</p>
+
+  <!-- 🟢 STATUS + TIME -->
+  <div class="mt-3">
+    <p id="lastUpdate" class="text-sm"></p>
+    <p id="statusBadge" class="text-sm font-semibold"></p>
+  </div>
 </div>
 
 <!-- GRAPH -->
@@ -57,7 +63,7 @@ class="fixed top-4 right-4 px-3 py-1 text-sm bg-orange-500 text-white rounded-md
 
 <script>
 
-// 🌙 DARK MODE TOGGLE + BUTTON TEXT
+// 🌙 DARK MODE
 function toggleDark() {
   document.body.classList.toggle("dark");
 
@@ -74,7 +80,7 @@ function toggleDark() {
   updateChartTheme();
 }
 
-// Load saved theme
+// Load theme
 window.onload = () => {
   const btn = document.getElementById("themeBtn");
 
@@ -107,12 +113,13 @@ async function fetchData() {
 
     const latestTemp = temps[temps.length - 1];
     const latestHum = hums[hums.length - 1];
+    const latestTime = feeds[feeds.length - 1].created_at;
 
     // VALUES
     document.getElementById("temp").innerText = latestTemp + " °C";
     document.getElementById("hum").innerText = latestHum + " %";
 
-    // STATUS
+    // STATUS TEXT
     document.getElementById("tempStatus").innerText =
       latestTemp > 25 ? "High" : "Normal";
 
@@ -133,6 +140,23 @@ async function fetchData() {
     document.getElementById("alerts").innerText =
       alert || "All conditions optimal ✅";
 
+    // 🟢 LAST UPDATED
+    document.getElementById("lastUpdate").innerText =
+      "Last updated: " + new Date(latestTime).toLocaleTimeString();
+
+    // 🟢 STATUS BADGE
+    const now = new Date();
+    const last = new Date(latestTime);
+    const diff = (now - last) / 1000;
+
+    if (diff > 60) {
+      document.getElementById("statusBadge").innerText = "🟡 Delayed Data";
+      document.getElementById("statusBadge").className = "text-yellow-500 font-semibold";
+    } else {
+      document.getElementById("statusBadge").innerText = "🟢 Live";
+      document.getElementById("statusBadge").className = "text-green-500 font-semibold";
+    }
+
     // GRAPH
     if (!chart) {
       const ctx = document.getElementById("chart").getContext("2d");
@@ -146,15 +170,13 @@ async function fetchData() {
               label: "Temperature (°C)",
               data: temps,
               borderColor: "#f97316",
-              tension: 0.3,
-              pointRadius: 3
+              tension: 0.3
             },
             {
               label: "Humidity (%)",
               data: hums,
               borderColor: "#38bdf8",
-              tension: 0.3,
-              pointRadius: 3
+              tension: 0.3
             }
           ]
         },
@@ -170,11 +192,15 @@ async function fetchData() {
 
   } catch (err) {
     console.error(err);
+
     document.getElementById("alerts").innerText = "⚠️ Fetch failed";
+
+    document.getElementById("statusBadge").innerText = "🔴 Connection Lost";
+    document.getElementById("statusBadge").className = "text-red-500 font-semibold";
   }
 }
 
-// 🎨 CHART THEME (fix axis visibility)
+// 🎨 CHART THEME
 function getChartOptions() {
   const isDark = document.body.classList.contains("dark");
 
@@ -201,7 +227,6 @@ function getChartOptions() {
   };
 }
 
-// update chart on theme toggle
 function updateChartTheme() {
   if (chart) {
     chart.options = getChartOptions();
@@ -209,7 +234,7 @@ function updateChartTheme() {
   }
 }
 
-// ⏱️ Update
+// UPDATE LOOP
 setInterval(fetchData, 15000);
 fetchData();
 
